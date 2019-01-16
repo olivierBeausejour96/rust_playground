@@ -198,7 +198,7 @@ impl Rectangle {
 }
 
 fn main() {
-    let path = String::from("C:\\Images\\OpImg1.bmp");
+    let path = String::from("C:\\Images\\remy.bmp");
     let b = Bitmap::open(&path);
     let mut nb = 0;
     /*for _i in b.get_ptr0().iter() {
@@ -220,7 +220,7 @@ fn main() {
         nb += 1;
     }*/
 
-    d.save("C:\\Images\\OpImg2.bmp");
+    d.save("C:\\Images\\remy_Contrasted.bmp");
 }
 
 
