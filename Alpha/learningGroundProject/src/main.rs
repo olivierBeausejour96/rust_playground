@@ -172,7 +172,7 @@ impl Bitmap {
                 vals.sort();
                 let ratio = *vals.last().unwrap() / (*vals.first().unwrap() + 1);
                 let px = (x as usize) * 3 + (y as usize) * (self.stride as usize) + self.offset;
-                if ratio >= 4 {
+                if ratio >= 8 {
                     //println!("ratio: {}", ratio);
                     new_data[px] = 0;
                     new_data[px+1] = 0;
@@ -188,6 +188,34 @@ impl Bitmap {
 
         self.create_from(Box::new(new_data))
     }
+
+    fn generate_swapped_color_img(&self) -> Bitmap {
+        let mut new_data = *self.data.clone();
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let px = (x as usize) * 3 + (y as usize) * (self.stride as usize) + self.offset;
+                let temp = new_data[px];
+                new_data[px] = new_data[px + 2];
+                new_data[px+1] = new_data[px + 1]; 
+                new_data[px+2] = temp;
+            }
+        }
+
+        self.create_from(Box::new(new_data))
+    }
+
+    fn generate_more_green(&self) -> Bitmap {
+        let mut new_data = *self.data.clone();
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let px = (x as usize) * 3 + (y as usize) * (self.stride as usize) + self.offset;
+                let temp = new_data[px];
+                new_data[px+1] = new_data[px+1];
+            }
+        }
+
+        self.create_from(Box::new(new_data))
+    }
 }
 
 impl Rectangle {
@@ -198,29 +226,38 @@ impl Rectangle {
 }
 
 fn main() {
-    let path = String::from("C:\\Images\\remy.bmp");
-    let b = Bitmap::open(&path);
-    let mut nb = 0;
-    /*for _i in b.get_ptr0().iter() {
-        if nb % b.stride == 0 {
-            print!("\n");
-        }
-        print!(" {}", _i);
-        nb += 1;
-    }*/
-    let c = Bitmap::open(&path);
+    for i in 1..8 {
+        let name = format!("rem{}", i);
+        let path = format!("C:\\Images\\rem\\{}.bmp", name);
+        let save_path_contrasted = format!("C:\\Images\\rem\\{}_contrasted.bmp", name);
+        let save_path_swap = format!("C:\\Images\\rem\\{}_swap.bmp", name);
+        let b = Bitmap::open(&path);
+        let mut nb = 0;
+        /*for _i in b.get_ptr0().iter() {
+            if nb % b.stride == 0 {
+                print!("\n");
+            }
+            print!(" {}", _i);
+            nb += 1;
+        }*/
+        let c = Bitmap::open(&path);
 
-    let d = c.generate_contrast_map();
+        let d = c.generate_contrast_map();
+        let e = c.generate_swapped_color_img();
 
-    /*for _i in d.get_ptr0().iter() {
-        if nb % d.stride == 0 {
-            print!("\n");
-        }
-        print!(" {}", _i);
-        nb += 1;
-    }*/
 
-    d.save("C:\\Images\\remy_Contrasted.bmp");
+        /*for _i in d.get_ptr0().iter() {
+            if nb % d.stride == 0 {
+                print!("\n");
+            }
+            print!(" {}", _i);
+            nb += 1;
+        }*/
+
+        d.save(&save_path_contrasted);
+        e.save(&save_path_swap);
+
+    }
 }
 
 
