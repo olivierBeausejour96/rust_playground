@@ -1,0 +1,7 @@
+[package]
+name = "learningGroundProject"
+version = "0.1.0"
+authors = ["olibb"]
+edition = "2018"
+
+[dependencies]
