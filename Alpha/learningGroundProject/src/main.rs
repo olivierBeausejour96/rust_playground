@@ -1,236 +1,12 @@
-use std::env;
-use std::fs;
+use rand::prelude::*;
+use std::iter::*;
+use std::error::Error;
 
-#[derive(Debug)]
-struct Bitmap {
-    width: u32,
-    height: u32,
-    offset: usize,
-    bpp: u32,
-    stride: u32,
-    data:Box<std::vec::Vec<u8>>
-}
-
-struct Rectangle {
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32
-}
-
-
-impl Bitmap {
-    fn get_ptr0(&self) -> &[u8] {
-        return &self.data[self.offset..]
-    }
-    fn create_from(&self, data: Box<Vec<u8>>) -> Bitmap {
-        Bitmap {
-            data: data,
-            ..*self
-        }
-    } 
-    fn open(path: &str) -> Bitmap {
-        let ar = fs::read(path).expect("Error reading the file");
-        
-        let width =
-        (ar[21] as u32)<< 24|
-        (ar[20] as u32)<< 16| 
-        (ar[19] as u32)<< 8 | 
-        (ar[18] as u32);
-        
-        let height =
-        (ar[25] as u32)<< 24|
-        (ar[24] as u32)<< 16| 
-        (ar[23] as u32)<< 8 | 
-        (ar[22] as u32);
-        
-        let offset = (ar[13] as usize) << 24 |  
-        (ar[12] as usize)<< 16 |  
-        (ar[11] as usize)<< 8 | 
-        (ar[10] as usize);
-        
-        let bpp = 
-        (ar[29] as u32 ) << 8 |
-        (ar[28] as u32 );
-        
-        let stride = if bpp * width % 32 == 0 {
-            ((bpp * width) / 32) * 4
-        }
-        else {
-            ((bpp * width + 31) /32) * 4
-        };
-
-        Bitmap {
-            width : width,
-            height: height,
-            offset: offset,
-            bpp: bpp,
-            stride: stride,
-            data : Box::new(ar)
-        }
-    }
-    fn save(&self, path: &str) {
-        fs::write(path, &*self.data).unwrap();
-    }
-    fn clone(&self) -> Bitmap {
-        Bitmap {
-            width: self.width,
-            height: self.height,
-            offset: self.offset,
-            bpp: self.bpp,
-            stride: self.stride,
-            data: self.data.clone()
-        }        
-    }
-    fn get_region(&self, rec: &Rectangle) -> std::vec::Vec<&[u8]> {
-        let mut v = std::vec::Vec::new();
-        for _r in rec.y..rec.y+rec.height {
-            v.push(&self.get_ptr0()[_r as usize.._r as usize + rec.width as usize]);
-        };
-        return v
-    }
-    fn distance(&self, bmp: &Bitmap) -> usize {
-        let mut val: usize = 0;
-        for _i in 0..self.get_ptr0().len() {
-            val += 
-            if self.get_ptr0()[_i] > bmp.get_ptr0()[_i] {
-                ((self.get_ptr0()[_i] - bmp.get_ptr0()[_i]) as usize) *
-                ((self.get_ptr0()[_i] - bmp.get_ptr0()[_i]) as usize)
-            }
-            else {
-                ((bmp.get_ptr0()[_i] - self.get_ptr0()[_i]) as usize) *
-                ((bmp.get_ptr0()[_i] - self.get_ptr0()[_i]) as usize)
-            } 
-        }
-        val
-    }
-    fn generate_contrast_map(&self) -> Bitmap {
-        let mut v = std::vec::Vec::new();
-        for y in 0..self.height {
-            v.push(std::vec::Vec::new());
-            for x in 0..self.width {
-                let mut av = 0;
-                let mut nb = 0;
-                for xi in 3*x..3*x+3 {
-                    let p: i32 = self.get_ptr0()[(y as usize) * (self.stride as usize) + (xi as usize)].into();
-                    if x > 0 {
-                        nb += 1;
-                        let po: i32 = self.get_ptr0()[(y as usize) * (self.stride as usize) + ((xi - 3) as usize)].into();
-
-                        let diff: i32 = p - po;
-                        av += diff * diff;
-                    }
-
-                    if y > 0 {
-                        nb += 1;
-                        let pn: i32 = self.get_ptr0()[((y - 1) as usize) * (self.stride as usize) + (xi as usize)].into();
-
-                        let diff: i32 = p - pn;
-                        av += diff * diff;
-                    }
-
-                    if x < self.width - 1 {
-                        nb += 1;
-                        let pe: i32 = self.get_ptr0()[(y as usize) * (self.stride as usize) + ((xi + 3) as usize)].into();
-
-                        let diff: i32 = p - pe;
-                        av += diff * diff;
-                    }
-
-                    if y < self.height - 1 {
-                        nb += 1;
-                        let ps: i32 = self.get_ptr0()[((y + 1) as usize) * (self.stride as usize) + (xi as usize)].into();
-
-                        let diff: i32 = p - ps;
-                        av += diff * diff;
-                    }
-                }
-                av /= nb;
-                v[(y as usize)].push(av);
-            }
-        }
-
-        let mut new_data = *self.data.clone();
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let mut vals = std::vec::Vec::new();
-                if x > 0 {
-                    vals.push(v[(y as usize)][((x - 1) as usize)])
-                }
-
-                if y > 0 {
-                    vals.push(v[((y - 1) as usize)][(x as usize)]);
-                }
-
-                if x < self.width - 1 {
-                    vals.push(v[(y as usize)][((x + 1) as usize)])
-                }
-
-                if y < self.height - 1 {
-                    vals.push(v[((y + 1) as usize)][(x as usize)]);
-                }
-                vals.sort();
-                let ratio = *vals.last().unwrap() / (*vals.first().unwrap() + 1);
-                let px = (x as usize) * 3 + (y as usize) * (self.stride as usize) + self.offset;
-                if ratio >= 8 {
-                    //println!("ratio: {}", ratio);
-                    new_data[px] = 0;
-                    new_data[px+1] = 0;
-                    new_data[px+2] = 0;
-                }
-                else {
-                    new_data[px] = 255;
-                    new_data[px+1] = 255;
-                    new_data[px+2] = 255;
-                }
-            }
-        }
-
-        self.create_from(Box::new(new_data))
-    }
-
-    fn generate_swapped_color_img(&self) -> Bitmap {
-        let mut new_data = *self.data.clone();
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let px = (x as usize) * 3 + (y as usize) * (self.stride as usize) + self.offset;
-                let temp = new_data[px];
-                new_data[px] = new_data[px + 2];
-                new_data[px+1] = new_data[px + 1]; 
-                new_data[px+2] = temp;
-            }
-        }
-
-        self.create_from(Box::new(new_data))
-    }
-
-    fn generate_more_green(&self) -> Bitmap {
-        let mut new_data = *self.data.clone();
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let px = (x as usize) * 3 + (y as usize) * (self.stride as usize) + self.offset;
-                let temp = new_data[px];
-                new_data[px+1] = new_data[px+1];
-            }
-        }
-
-        self.create_from(Box::new(new_data))
-    }
-}
-
-impl Rectangle {
-    fn area(&self) -> usize {
-        (self.width as usize) * (self.height as usize)
-    }
-
-}
-
-fn main() {
-    for i in 1..8 {
-        let name = format!("rem{}", i);
-        let path = format!("C:\\Images\\rem\\{}.bmp", name);
-        let save_path_contrasted = format!("C:\\Images\\rem\\{}_contrasted.bmp", name);
-        let save_path_swap = format!("C:\\Images\\rem\\{}_swap.bmp", name);
+    /*for i in 1..2 {
+        let name = format!("im_blue");
+        let path = format!("C:\\Images\\{}.bmp", name);
+        let save_path_contrasted = format!("C:\\Images\\{}_contrasted.bmp", name);
+        let save_path_swap = format!("C:\\Images\\{}_swap.bmp", name);
         let b = Bitmap::open(&path);
         let mut nb = 0;
         /*for _i in b.get_ptr0().iter() {
@@ -257,7 +33,168 @@ fn main() {
         d.save(&save_path_contrasted);
         e.save(&save_path_swap);
 
+    }*/
+
+
+struct Node<'a> {
+    links: Vec<Link<'a>>
+}
+
+impl<'a> Node<'a> {
+    fn new(nodes: &'a [Node]) -> Node<'a> {
+        let mut rng = rand::thread_rng();
+
+        let mut links = Vec::new();
+        let mut ind = 0;
+        for n in nodes {
+            links.push(Link::new(rng.gen(), n));
+            ind += 1;
+        }
+
+        Node { links }
     }
+}
+
+struct Link<'a> {
+    weigth: f64,
+    node: &'a Node<'a>
+}
+
+impl<'a> Link<'a> {
+    fn new(weigth: f64, node: &'a Node) -> Link<'a> {
+        Link { weigth, node }
+    }
+}
+
+struct Cluster<'a> {
+    nodes: Vec<Node<'a>>,
+    neighbours: &'a [Cluster<'a>]
+}
+
+impl<'a> Cluster<'a> {
+    fn new(nodes: Vec<Node<'a>>, neighbours: &'a [Cluster<'a>]) -> Cluster<'a> {
+        Cluster { nodes, neighbours }
+    }
+}
+
+struct NeuralNetwork<'a> {
+    clusters: Vec<Cluster<'a>>
+}
+
+impl<'a> NeuralNetwork<'a> {
+    fn new(clusters: Vec<Cluster<'a>>) -> NeuralNetwork<'a> {
+        NeuralNetwork { clusters }
+    }
+}
+
+
+struct Matrix<T> {
+    data: Vec<Vec<T>>
+}
+
+
+impl Matrix<u8> where
+{
+    fn from(numbers: &[u8]) -> Matrix<u8> {
+        let mut data = Vec::new();
+        for n in numbers {
+            data.push(Vec::new());
+
+            let mut n_mut = *n;
+            for _i in 0..8 {
+                data.last_mut()
+                .unwrap()
+                .push(if n_mut & u8::from(1) != 0 {1} else {0});
+                n_mut = n_mut >> 1;
+            }
+        }
+        Matrix { data }
+    }
+
+    fn transpose(&self) -> Matrix<u8> {
+        let mut data = Vec::new();
+
+        for _i in 0..self.data[0].len() {
+            data.push(Vec::new());
+            
+        }
+
+        for i in 0..self.data.len() {
+            for j in 0..self.data[i].len() {
+                data[i].push(self.data[j][i]);
+            }
+        }
+
+        Matrix { data }
+    }
+}
+
+use std::fmt::*;
+impl<T> Display for Matrix<T> where
+T: Display + Copy
+{
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        let mut s = String::new();
+        for l in &self.data {
+            s.push_str(&format!("|"));
+            for n in l {
+                s.push_str(&format!(" {}", n));
+            }
+            s.push_str(&format!(" |\n"));
+        }
+
+        write!(f, "{}", s)
+    }
+}
+
+fn toy_network_exec() {
+    let mut rng = rand::thread_rng();
+    let mut v = Vec::new();
+
+    for _i in 0..8 {
+        let val: u8 = rng.gen();
+        v.push(val);
+    }
+
+    let m: Matrix<u8> = Matrix::from(&v);
+
+    println!("m:\n{}", &m);
+
+    let m_t = m.transpose();
+    
+    println!("m_t:\n{}", &m_t);
+}
+
+
+fn main() {
+    toy_network_exec();
+}
+
+use std::thread::sleep;
+use std::time::{Duration, SystemTime};
+
+fn benchmark_cast() {
+    let vec_u8 = vec![u8::from(1), u8::from(2), u8::from(4), u8::from(8)];
+    let vec_u32 = vec![i32::from(1), i32::from(2), i32::from(4), i32::from(8)];
+
+    let time_span = SystemTime::now();
+    for _i in 0..10_000_000 {
+        let _a = (vec_u8[0] as i32) - (vec_u8[3] as i32);
+    }
+    println!("u8 -> i32: {:?}", time_span.elapsed().unwrap());
+
+    
+    let time_span = SystemTime::now();
+    for _i in 0..10_000_000 {
+        let _a = vec_u8[3] - vec_u8[0];
+    }
+    println!("u8 no cast: {:?}", time_span.elapsed().unwrap());
+
+    let time_span = SystemTime::now();
+    for _i in 0..10_000_000 {
+        let _a = vec_u32[3] - vec_u32[0];
+    }
+    println!("u32 no cast: {:?}", time_span.elapsed().unwrap());
 }
 
 
