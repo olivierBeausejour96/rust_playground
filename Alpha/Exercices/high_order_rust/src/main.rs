@@ -25,10 +25,19 @@ impl<T> Cacher<T>
 
     fn value(&mut self, arg: u32) -> u32 {
         println!("{} ___ {:?}", arg, self.value);
-        match self.value.entry(arg) {
+        
+        if let Entry::Vacant(v) = self.value.entry(arg) {
+            *v.insert((self.calculation)(arg))
+        }
+        else {
+            self.value[&arg]
+        }
+        
+        
+        /*match self.value.entry(arg) {
             Entry::Vacant(_) => *self.value.entry(arg).or_insert((self.calculation)(arg)),
             Entry::Occupied(v) => *v.get()
-        }
+        }*/
 
     }
 }
