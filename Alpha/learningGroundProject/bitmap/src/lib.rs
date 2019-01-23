@@ -15,18 +15,31 @@ pub struct Bitmap {
     data:Box<std::vec::Vec<u8>>
 }
 
+pub struct Rec {
+    x: u32,
+    y: u32,
+    width: u32,
+    height: u32,
+}
+
 impl Bitmap {
     pub fn get_ptr0(&self) -> &[u8] {
         return &self.data[self.offset..]
     }
 
-    
-
-
     pub fn create_from(&self, data: Box<Vec<u8>>) -> Bitmap {
         Bitmap {
             data: data,
             ..*self
+        }
+    }
+
+    fn stride_from_width(bpp: u32, width: u32) -> u32 {
+        if bpp * width % 32 == 0 {
+            ((bpp * width) / 32) * 4
+        }
+        else {
+            ((bpp * width + 31) /32) * 4
         }
     } 
     pub fn open(path: &str) -> Bitmap {
@@ -53,12 +66,7 @@ impl Bitmap {
         (ar[29] as u32 ) << 8 |
         (ar[28] as u32 );
         
-        let stride = if bpp * width % 32 == 0 {
-            ((bpp * width) / 32) * 4
-        }
-        else {
-            ((bpp * width + 31) /32) * 4
-        };
+        let stride = Bitmap::stride_from_width(bpp, width);
 
         Bitmap {
             width : width,
@@ -215,5 +223,43 @@ impl Bitmap {
         }
 
         self.create_from(Box::new(new_data))
+    }
+
+    pub fn generate_pixelize_textures(&self, dim: Rec) -> Vec<Bitmap> {
+        let mut ret = Vec::new();
+        
+        let horizontal_inc = self.width / dim.width;
+        let vertical_inc = self.height / dim.height;
+        let ptr0 = self.get_ptr0();
+
+        for y in 0..self.height/vertical_inc {
+            for x in 0..self.width/horizontal_inc {
+                let mut slice_vec = Vec::new();
+                for j in 0..vertical_inc {
+                    let slice_begin = y * vertical_inc + j * self.stride + x * horizontal_inc;
+                    let slice_end = slice_begin + horizontal_inc;
+                    slice_vec.push(ptr0[slice_begin..slice_end]);
+                }
+
+                let data = self.data.clone_from_slice([..self.offset]);
+
+            }
+        }
+
+                /*let mut data = Box::new(Vec::new());
+                ret.push(
+                    Bitmap {
+                        width: horizontal_inc,
+                        height: vertical_inc,
+                        bpp: self.bpp,
+                        stride: Bitmap::stride_from_width(self.bpp, horizontal_inc),
+                        data: data,
+                        offset: self.offset
+                    }*/
+                
+            
+        
+
+        ret
     }
 }

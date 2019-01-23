@@ -1,0 +1,7 @@
+[package]
+name = "high_order_rust"
+version = "0.1.0"
+authors = ["retardedpunk"]
+edition = "2018"
+
+[dependencies]
