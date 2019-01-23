@@ -1,1 +1,1 @@
-/home/local/USHERBROOKE/beao3002/rust_project/rust_playground/Alpha/Exercices/ripgrep/target/debug/libripgrep.rlib: /home/local/USHERBROOKE/beao3002/rust_project/rust_playground/Alpha/Exercices/ripgrep/src/lib.rs
+C:\Users\olibb\RustProjects\Alpha\Exercices\ripgrep\target\debug\libripgrep.rlib: C:\Users\olibb\RustProjects\Alpha\Exercices\ripgrep\src\lib.rs

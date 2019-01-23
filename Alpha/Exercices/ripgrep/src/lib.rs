@@ -1,3 +1,5 @@
+use std::env;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -7,7 +9,7 @@ mod tests {
         fn config_constructor() {
             let args = vec![String::from("executable_path"), String::from("query"), String::from("file_path")];
     
-            let c = Config::new(&args).unwrap();
+            let c = Config::new(args.into_iter()).unwrap();
     
             assert_eq!(c.query, args[1]);
             assert_eq!(c.path, args[2]);
@@ -88,13 +90,20 @@ pub struct SearchConfig<'a> {
 }
 
 impl Config {
-    pub fn new(args: &[String]) -> Result<Config, &'static str> {
+    pub fn new(mut args: std::env::Args) -> Result<Config, &'static str> {
         if args.len() < 3 {
             return Err("Not enough parameters provided!");
         }
         
-        let query = args[1].clone();
-        let path  = args[2].clone();
+        let query = match args.next() {
+            Some(arg)   => arg,
+            None        => return Err("Didn't get a query string"),
+        };
+
+        let path = match args.next() {
+            Some(arg)   => arg,
+            None        => return Err("Didn't get a path string"),
+        };
 
         Ok(Config { query, path })
     }
@@ -108,12 +117,6 @@ impl<'a> SearchConfig<'a> {
             case_sensitive: case_sensitive
         }
     }
-}
-
-pub fn parse_config(args: &[String]) -> Result<Config, &'static str> {
-    
-    Config::new(&args)
-
 }
 
 use std::error::Error;
@@ -133,16 +136,10 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn search<'a>(conf: &SearchConfig<'a>) -> Vec<&'a str> {
-    let mut results = Vec::new();
 
-    for line in conf.content.lines() {
-        if (conf.case_sensitive && line.to_lowercase().contains(&conf.query.to_lowercase())) || 
-        (line.contains(&conf.query)) {
-            results.push(line);
-        }
-    }
-
-    results
+    conf.content.lines()
+    .filter(|l| l.contains(&conf.query))
+    .collect()
 
 }
  
