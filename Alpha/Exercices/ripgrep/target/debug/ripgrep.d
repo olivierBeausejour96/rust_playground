@@ -1,1 +1,0 @@
-C:\Users\olibb\RustProjects\Alpha\Exercices\ripgrep\target\debug\ripgrep.pdb: C:\Users\olibb\RustProjects\Alpha\Exercices\ripgrep\src\lib.rs C:\Users\olibb\RustProjects\Alpha\Exercices\ripgrep\src\main.rs
