@@ -283,7 +283,7 @@ mod blog_v2 {
     //compile-time checked!!!
     //macros could be used for this to prevent code duplication!
     pub struct PendingReviewPost_1 {
-        content: String,
+        content: String,                
     }
 
     impl PendingReviewPost_1 {

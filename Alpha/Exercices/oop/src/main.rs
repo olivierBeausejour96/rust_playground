@@ -1,4 +1,8 @@
 extern crate oop;
+
+#![feature(log_syntax)]
+
+
 use oop::*;
 use oop::{Post};
 
