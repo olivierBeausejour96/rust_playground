@@ -5,6 +5,7 @@ use std::sync::{Mutex, Arc};
 
 fn main() {
     deadlock();
+    //message_passing();
 }
 
 
